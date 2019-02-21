@@ -1,0 +1,87 @@
+# -*- coding: utf-8 -*-
+import scrapy
+
+from jobscrawler_qianchengwuyou.items import JobscrawlerQianchengwuyouItem
+class QianchengSpiderSpider(scrapy.Spider):
+    name = 'qiancheng_spider'
+    # allowed_domains = ['www.qq.com']
+    start_urls = [
+        #关键字数据分析
+        'https://search.51job.com/list/000000,000000,0000,00,9,99,%25E6%2595%25B0%25E6%258D%25AE%25E5%2588%2586%25E6%259E%2590%25E5%25B8%2588,2,1.html?lang=c&stype=&postchannel=0000&workyear=99&cotype=99&degreefrom=99&jobterm=99&companysize=99&providesalary=99&lonlat=0%2C0&radius=-1&ord_field=0&confirmdate=9&fromType=&dibiaoid=0&address=&line=&specialarea=00&from=&welfare='
+
+        #关键字数据挖掘
+        'https://search.51job.com/list/000000,000000,0000,00,9,99,%25E6%2595%25B0%25E6%258D%25AE%25E6%258C%2596%25E6%258E%2598,2,1.html?lang=c&stype=&postchannel=0000&workyear=99&cotype=99&degreefrom=99&jobterm=99&companysize=99&providesalary=99&lonlat=0%2C0&radius=-1&ord_field=0&confirmdate=9&fromType=&dibiaoid=0&address=&line=&specialarea=00&from=&welfare='
+
+        #关键字算法
+        'https://search.51job.com/list/000000,000000,0000,00,9,99,%25E7%25AE%2597%25E6%25B3%2595,2,1.html?lang=c&stype=&postchannel=0000&workyear=99&cotype=99&degreefrom=99&jobterm=99&companysize=99&providesalary=99&lonlat=0%2C0&radius=-1&ord_field=0&confirmdate=9&fromType=&dibiaoid=0&address=&line=&specialarea=00&from=&welfare='
+                  
+        #关键字机器学习
+        'https://search.51job.com/list/000000,000000,0000,00,9,99,%25E6%259C%25BA%25E5%2599%25A8%25E5%25AD%25A6%25E4%25B9%25A0,2,1.html?lang=c&stype=&postchannel=0000&workyear=99&cotype=99&degreefrom=99&jobterm=99&companysize=99&providesalary=99&lonlat=0%2C0&radius=-1&ord_field=0&confirmdate=9&fromType=&dibiaoid=0&address=&line=&specialarea=00&from=&welfare='
+
+        #关键字深度学习
+        'https://search.51job.com/list/000000,000000,0000,00,9,99,%25E6%25B7%25B1%25E5%25BA%25A6%25E5%25AD%25A6%25E4%25B9%25A0,2,1.html?lang=c&stype=&postchannel=0000&workyear=99&cotype=99&degreefrom=99&jobterm=99&companysize=99&providesalary=99&lonlat=0%2C0&radius=-1&ord_field=0&confirmdate=9&fromType=&dibiaoid=0&address=&line=&specialarea=00&from=&welfare='
+
+        #关键字人工智能
+        'https://search.51job.com/list/000000,000000,0000,00,9,99,%25E4%25BA%25BA%25E5%25B7%25A5%25E6%2599%25BA%25E8%2583%25BD,2,1.html?lang=c&stype=&postchannel=0000&workyear=99&cotype=99&degreefrom=99&jobterm=99&companysize=99&providesalary=99&lonlat=0%2C0&radius=-1&ord_field=0&confirmdate=9&fromType=&dibiaoid=0&address=&line=&specialarea=00&from=&welfare='
+    ]
+    #以上是第一步，获取搜索到这些关键字的都有哪些url
+    #第二步骤，这些个检索页，下面有很多页，要翻页，每一页中的每个详情页的里面的数据
+    #那么首先我们要先写提取一个页面当中的url（每一个详情页的url），这应该是一个a标签
+
+    def parse(self, response):
+        xpath="//div[@class='el']" #这里面要过滤筛选一下用这个xpth获得
+        items = response.xpath(xpath); #这里面获得是不满足条件的el标签
+        print(items)
+        for item in items:
+        #遍历一下这个items，把不符合需求的过滤掉
+        # 如何去过滤呢？也就是说如何选择下面这个if的条件呢，我们来看看原始网页代码的特点
+            #观察之后我们发现每一个t1标签前面还都有一个p标签，t1后面还有一个空格
+            if not len(item.xpath("./p[@class='t1 ']")):
+                continue
+                                  #一个点表示当前节点#p标签 t1 （这里有个空格）#这部分为这么这样写我不是特别明白
+                   #也就是说我在上面这个items下面我再查找，有没有"p标签"，有没有class等于‘t1空格’
+            url = item.xpath("./p[@class='t1 ']//a/@href").extract_first()#这里获得是详情页的全部内容
+        #./p[@class='t1 '#照抄，因为他下面只有一个“a标签”，获取他下面全部内容@
+        #href属性，
+            yield scrapy.Request(url, callback=self.detail_parse)
+        #下面开始是想得到他的翻页行为
+        next_page_url = response.xpath("//a[@id='rtNext']/@href").extract_first()
+        if not next_page_url is None:
+             yield scrapy.Request(next_page_url, callback=self.parse)
+    def detail_parse(self,response):
+        item = JobscrawlerQianchengwuyouItem()
+        # 招聘名称
+        item["job_name"] = response.xpath("//div[@class='cn']/h1/text()").extract_first().strip()
+        # 可以获得没有白空格的job_name
+
+        # 职位信息
+        item["job_info"] = "".join(response.xpath("//div[@calss='bmsg job_msg inbox']//text()").extract()).strip()
+        # 薪资
+        item["job_salary"] = "".join(response.xpath('//div[@class="sp4"]/text()').extract()).strip()
+        # 职位福利
+        item["job_welfare"] = ",".join(response.xpath("//span[@class='sp4']/text()").extract())
+        #item["job_welfare"] = response.xpath("//span[@class='sp4']/text()这样会获得一个列表，但是我们需要的是一个字符串
+        # 经验要求
+        item["job_exp_require"] = response.xpath('//p[@class="msg ltype"]/text()').extract()[1].strip()
+        item["job_edu_require"] = response.xpath('//p[@class="msg ltype"]/text()').extract()[2].strip()
+
+        # 学历要求#获取详情页的细节信息
+        # 公司名称
+        item["company_name"] = response.xpath('//div[@class="com_msg"]//p/text').extract_first().strip()
+        # 公司行业
+        # 公司性质
+        itme["company_industry"] = "".join(response.xpath('//span[@class="i_trade"]/../text()').extract()).strip()
+        item["company_nature"] = "".join(response.xpath('//span[@class="i_flag"]/../text()').extract()).strip()
+        #“..（点点）”的意思是我希望定位到父标签的text，但是定位不到父标签，能定位到子标签同一级的标签，然后通过子标签点点，就可以了
+        #"".join（....）意思是得到的是一个列表，join一下，就加到前面的“”当中去了，就变成str格式了
+        #这里如果希望把所有的白空格都处理掉的话，就需要for循环，但是数据量比较大，就把收尾的白空格去掉就可以了
+        # 公司人数
+        item["company_people"] = "".join(response.xpath('//span[@class="i_people"]/../text()').extract()).strip()
+        # 公司地址
+        item["company_location"] = ""
+        # 公司概况
+        item["company_overview"] = "".join(response.xpath('//div[@class="tmsg inbox"]//text()').extract()).strip()
+
+        # 公司融资阶段
+        item["company_financing_stage"] = ""
+        yield item
